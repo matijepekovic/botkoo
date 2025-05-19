@@ -1,22 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'ui/screens/home_screen.dart';
+import 'package:botko/ui/themes/app_theme.dart';
+import 'package:botko/ui/screens/home_screen.dart';
 
 void main() {
+  // Ensure Flutter bindings are initialized
+  WidgetsFlutterBinding.ensureInitialized();
+
   runApp(const BotkoApp());
 }
 
 class BotkoApp extends StatelessWidget {
-  const BotkoApp({Key? key}) : super(key: key);
+  const BotkoApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Botko',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.lightTheme,
       home: const HomeScreen(),
     );
   }
