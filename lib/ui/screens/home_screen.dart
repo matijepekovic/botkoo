@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:botko/ui/screens/connect_account_screen.dart';
+import 'package:botko/ui/screens/content_library_screen.dart';
+import 'package:botko/ui/screens/schedule_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -11,20 +14,17 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [
-    const _PlaceholderScreen(
-      title: 'Connect Accounts',
-      icon: Icons.account_circle,
-      description: 'Connect and manage your social media accounts',
+    const Padding(
+      padding: EdgeInsets.all(16.0),
+      child: ConnectAccountScreen(),
     ),
-    const _PlaceholderScreen(
-      title: 'Content Library',
-      icon: Icons.library_books,
-      description: 'Create and manage content for your social media posts',
+    const Padding(
+      padding: EdgeInsets.all(16.0),
+      child: ContentLibraryScreen(),
     ),
-    const _PlaceholderScreen(
-      title: 'Schedule Posts',
-      icon: Icons.calendar_today,
-      description: 'Schedule and automate your social media posts',
+    const Padding(
+      padding: EdgeInsets.all(16.0),
+      child: ScheduleScreen(),
     ),
     const _PlaceholderScreen(
       title: 'Analytics',

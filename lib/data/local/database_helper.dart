@@ -1,5 +1,10 @@
-import 'package:sqflite/sqflite.dart';
+
 import 'package:path/path.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
+
+// Add this import
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper _instance = DatabaseHelper._internal();
@@ -9,6 +14,17 @@ class DatabaseHelper {
   DatabaseHelper._internal();
 
   static Database? _database;
+
+  // Add this initialization method for desktop platforms
+  static void initialize() {
+    if (!kIsWeb) {
+      if (Platform.isWindows || Platform.isLinux) {
+        // Initialize FFI for Windows/Linux
+        sqfliteFfiInit();
+        databaseFactory = databaseFactoryFfi;
+      }
+    }
+  }
 
   Future<Database> get database async {
     if (_database != null) return _database!;
