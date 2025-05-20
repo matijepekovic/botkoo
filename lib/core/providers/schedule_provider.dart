@@ -1,11 +1,19 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:botko/core/models/social_account.dart';
 import 'package:botko/core/models/content_item.dart';
 import 'package:botko/core/models/scheduled_post.dart';
 import 'package:botko/data/local/database_helper.dart';
+import 'package:botko/core/services/publishing_service.dart';
 
 class ScheduleProvider extends ChangeNotifier {
   final DatabaseHelper _databaseHelper = DatabaseHelper();
+  final PublishingService _publishingService = PublishingService();
+
+  // Stream subscription for publishing events
+  StreamSubscription<int>? _publishingSubscription;
+
   List<ScheduledPost> _scheduledPosts = [];
   final Map<int, ContentItem> _contentItems = {};
   final Map<int, SocialAccount> _accounts = {};
@@ -27,11 +35,26 @@ class ScheduleProvider extends ChangeNotifier {
     _setLoading(true);
     try {
       await _loadScheduledPosts();
+
+      // Listen for publishing events
+      _publishingSubscription = _publishingService.publishingEvents.listen((postId) {
+        // Reload posts when a post status changes
+        debugPrint("Received publishing event for post $postId");
+        _loadScheduledPosts();
+      });
+
     } catch (e) {
       _setError(e.toString());
     } finally {
       _setLoading(false);
     }
+  }
+
+  // Dispose of resources when provider is destroyed
+  @override
+  void dispose() {
+    _publishingSubscription?.cancel();
+    super.dispose();
   }
 
   // Load all scheduled posts and related content and accounts
@@ -187,6 +210,28 @@ class ScheduleProvider extends ChangeNotifier {
           postDate.month == day.month &&
           postDate.day == day.day;
     }).toList();
+  }
+
+  // Manual publish method for UI
+  Future<bool> publishNow(int postId) async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final success = await _publishingService.manualPublish(postId);
+      if (success) {
+        // Reload the posts to get updated status
+        await _loadScheduledPosts();
+      } else {
+        _setError('Failed to publish post');
+      }
+      return success;
+    } catch (e) {
+      _setError('Error publishing post: ${e.toString()}');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
   }
 
   // Helper methods

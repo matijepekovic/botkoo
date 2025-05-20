@@ -1,20 +1,42 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:botko/core/models/social_account.dart';
-import 'package:botko/data/local/database_helper.dart'; // Add this missing import
+import 'package:botko/data/local/database_helper.dart';
 
 class AuthService {
   static const String _prefsKey = 'social_accounts';
 
-  // Add this missing method that account_provider is trying to use
+  // Updated to retrieve accounts from database as the primary source
   Future<List<SocialAccount>> getAccounts() async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String> accountsJson = prefs.getStringList(_prefsKey) ?? [];
+    final DatabaseHelper dbHelper = DatabaseHelper();
+    final List<Map<String, dynamic>> accounts = await dbHelper.getSocialAccounts();
 
-    return accountsJson.map((accountJson) {
-      Map<String, dynamic> accountMap = jsonDecode(accountJson);
-      return SocialAccount.fromMap(accountMap);
-    }).toList();
+    if (accounts.isEmpty) {
+      // Fallback to preferences only if database is empty
+      // This helps with migration of existing users
+      final prefs = await SharedPreferences.getInstance();
+      List<String> accountsJson = prefs.getStringList(_prefsKey) ?? [];
+
+      // If we have accounts in preferences but not in DB, migrate them
+      if (accountsJson.isNotEmpty) {
+        List<SocialAccount> prefAccounts = accountsJson.map((accountJson) {
+          Map<String, dynamic> accountMap = jsonDecode(accountJson);
+          return SocialAccount.fromMap(accountMap);
+        }).toList();
+
+        // Save accounts to database for future use
+        for (var account in prefAccounts) {
+          await saveAccount(account);
+        }
+
+        // Now get accounts from database after migration
+        return await getAccounts();
+      }
+
+      return [];
+    }
+
+    return accounts.map((accountMap) => SocialAccount.fromMap(accountMap)).toList();
   }
 
   // Mock authentication for demonstration purposes
@@ -44,8 +66,8 @@ class AuthService {
     );
   }
 
-  // Save account to preferences (temporary storage solution)
-  Future<void> saveAccount(SocialAccount account) async {
+  // Updated saveAccount method to ensure proper ID handling
+  Future<SocialAccount> saveAccount(SocialAccount account) async {
     // Get database helper
     final DatabaseHelper dbHelper = DatabaseHelper();
 
@@ -53,32 +75,46 @@ class AuthService {
     final int id = await dbHelper.insertSocialAccount(account.toMap());
 
     // Create a new account with the ID
-    final accountWithId = SocialAccount(
-      id: id,
-      platform: account.platform,
-      username: account.username,
-      token: account.token,
-      refreshToken: account.refreshToken,
-      tokenExpiry: account.tokenExpiry,
-      isActive: account.isActive,
-    );
+    final accountWithId = account.copyWith(id: id);
 
-    // Save to preferences
+    // Save to preferences for backward compatibility
     final prefs = await SharedPreferences.getInstance();
     List<String> accounts = prefs.getStringList(_prefsKey) ?? [];
 
-    // Convert account to JSON and add to list
-    accounts.add(jsonEncode(accountWithId.toMap()));
+    // Remove any existing account with same platform/username to avoid duplicates
+    accounts = accounts.where((accountJson) {
+      Map<String, dynamic> accountMap = jsonDecode(accountJson);
+      return !(accountMap['platform'] == account.platform &&
+          accountMap['username'] == account.username);
+    }).toList();
 
+    // Add the updated account with ID
+    accounts.add(jsonEncode(accountWithId.toMap()));
     await prefs.setStringList(_prefsKey, accounts);
+
+    // Return the account with ID for immediate use
+    return accountWithId;
   }
 
-  // Remove account from preferences
+  // Updated to remove from both database and preferences
   Future<void> removeAccount(String platform, String username) async {
-    final prefs = await SharedPreferences.getInstance();
-    List<String> accounts = prefs.getStringList(_prefsKey) ?? [];
+    final DatabaseHelper dbHelper = DatabaseHelper();
 
-    List<String> updatedAccounts = accounts.where((accountJson) {
+    // First find the account in the database to get its ID
+    final List<Map<String, dynamic>> accounts = await dbHelper.getSocialAccounts();
+    for (var account in accounts) {
+      if (account['platform'] == platform && account['username'] == username) {
+        // Delete from database using ID
+        await dbHelper.deleteSocialAccount(account['id']);
+        break;
+      }
+    }
+
+    // Also remove from preferences
+    final prefs = await SharedPreferences.getInstance();
+    List<String> prefAccounts = prefs.getStringList(_prefsKey) ?? [];
+
+    List<String> updatedAccounts = prefAccounts.where((accountJson) {
       Map<String, dynamic> accountMap = jsonDecode(accountJson);
       return !(accountMap['platform'] == platform && accountMap['username'] == username);
     }).toList();
@@ -88,6 +124,13 @@ class AuthService {
 
   // Clear all accounts (for testing/logout)
   Future<void> clearAllAccounts() async {
+    final DatabaseHelper dbHelper = DatabaseHelper();
+    final db = await dbHelper.database;
+
+    // Clear database table
+    await db.delete('social_accounts');
+
+    // Clear preferences
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefsKey);
   }

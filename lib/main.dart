@@ -6,12 +6,17 @@ import 'package:botko/core/providers/account_provider.dart';
 import 'package:botko/core/providers/content_provider.dart';
 import 'package:botko/core/providers/schedule_provider.dart';
 import 'package:botko/data/local/database_helper.dart';
+import 'package:botko/core/services/publishing_service.dart'; // Add this import
 
 void main() {
   // Ensure Flutter bindings are initialized
   WidgetsFlutterBinding.ensureInitialized();
+
   // Initialize database for desktop platforms
   DatabaseHelper.initialize();
+
+  // Start the publishing service
+  PublishingService().startService();
 
   runApp(const BotkoApp());
 }

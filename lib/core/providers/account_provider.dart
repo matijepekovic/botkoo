@@ -32,7 +32,10 @@ class AccountProvider extends ChangeNotifier {
     try {
       final account = await _authService.connectAccount(platform, username, password);
       await _authService.saveAccount(account);
-      _accounts.add(account);
+
+      // Reload accounts from database to ensure IDs are present
+      _accounts = await _authService.getAccounts();
+
       notifyListeners();
     } catch (e) {
       _setError('Failed to connect account: ${e.toString()}');

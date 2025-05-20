@@ -6,11 +6,13 @@ import 'package:botko/core/models/scheduled_post.dart';
 import 'package:botko/core/providers/content_provider.dart';
 import 'package:botko/core/providers/account_provider.dart';
 import 'package:botko/core/providers/schedule_provider.dart';
+import 'package:botko/ui/widgets/platform_selector.dart';
 
 class PostSchedulerDialog extends StatefulWidget {
   final ScheduledPost? scheduledPost;
+  final DateTime? initialDate;
 
-  const PostSchedulerDialog({super.key, this.scheduledPost});
+  const PostSchedulerDialog({super.key, this.scheduledPost, this.initialDate});
 
   @override
   State<PostSchedulerDialog> createState() => _PostSchedulerDialogState();
@@ -23,6 +25,34 @@ class _PostSchedulerDialogState extends State<PostSchedulerDialog> {
   late DateTime _selectedDate;
   late TimeOfDay _selectedTime;
   bool _isEditing = false;
+
+  // Add these fields for platform selection
+  List<String> _selectedPlatforms = [];
+  String _contentType = 'text'; // Default to text
+
+  // Content type detection based on content
+  void _detectContentType() {
+    if (_selectedContent != null) {
+      // For now, simple detection
+      if (_selectedContent!.mediaUrls.isNotEmpty) {
+        // Check if media is video or image (you'll need to enhance this)
+        _contentType = 'image'; // or 'video' or 'reel'
+      } else {
+        _contentType = 'text';
+      }
+    }
+  }
+
+  // Platform toggle handler
+  void _togglePlatform(String platform) {
+    setState(() {
+      if (_selectedPlatforms.contains(platform)) {
+        _selectedPlatforms.remove(platform);
+      } else {
+        _selectedPlatforms.add(platform);
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -37,10 +67,19 @@ class _PostSchedulerDialogState extends State<PostSchedulerDialog> {
       final scheduledTime = widget.scheduledPost!.scheduledTime;
       _selectedDate = DateTime(scheduledTime.year, scheduledTime.month, scheduledTime.day);
       _selectedTime = TimeOfDay(hour: scheduledTime.hour, minute: scheduledTime.minute);
+
+      // If editing, add the platform from existing post
+      if (_selectedAccount != null) {
+        _selectedPlatforms = [_selectedAccount!.platform];
+      }
     } else {
-      _selectedDate = DateTime.now();
+      // Use the initialDate if provided, otherwise use today's date
+      _selectedDate = widget.initialDate ?? DateTime.now();
       _selectedTime = TimeOfDay.now();
     }
+
+    // Detect content type based on selected content
+    _detectContentType();
   }
 
   @override
@@ -56,6 +95,39 @@ class _PostSchedulerDialogState extends State<PostSchedulerDialog> {
             children: [
               // Content Dropdown
               _buildContentDropdown(),
+              const SizedBox(height: 16),
+
+              // Platform Selector (new)
+            Consumer<AccountProvider>(
+              builder: (context, provider, _) {
+                if (provider.isLoading) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                // Check if user has accounts for each platform
+                final availablePlatforms = {
+                  'twitter': provider.accounts.any((a) => a.platform == 'twitter'),
+                  'facebook': provider.accounts.any((a) => a.platform == 'facebook'),
+                  'instagram': provider.accounts.any((a) => a.platform == 'instagram'),
+                  'linkedin': provider.accounts.any((a) => a.platform == 'linkedin'),
+                };
+
+                // Only show platform selector if at least one platform has accounts
+                if (!availablePlatforms.values.any((has) => has)) {
+                  return const Text(
+                    'No accounts connected. Connect an account first.',
+                    style: TextStyle(color: Colors.red),
+                  );
+                }
+
+                return PlatformSelector(
+                  selectedPlatforms: _selectedPlatforms,
+                  onToggle: _togglePlatform,
+                  contentType: _contentType,
+                  availablePlatforms: availablePlatforms, // Pass the available platforms
+                );
+              },
+            ),
               const SizedBox(height: 16),
 
               // Account Dropdown
@@ -137,6 +209,19 @@ class _PostSchedulerDialogState extends State<PostSchedulerDialog> {
           );
         }
 
+        // Find selected content by ID if exists
+        if (_isEditing && _selectedContent != null && _selectedContent!.id != null) {
+          final contentId = _selectedContent!.id;
+          // Try to find the matching content in the provider's list
+          final matchingContent = availableContent
+              .firstWhere((c) => c.id == contentId, orElse: () => _selectedContent!);
+
+          // If found a different instance but same ID, use that one
+          if (matchingContent != _selectedContent && matchingContent.id == contentId) {
+            _selectedContent = matchingContent;
+          }
+        }
+
         return DropdownButtonFormField<ContentItem>(
           decoration: const InputDecoration(
             labelText: 'Content',
@@ -155,6 +240,8 @@ class _PostSchedulerDialogState extends State<PostSchedulerDialog> {
           onChanged: (value) {
             setState(() {
               _selectedContent = value;
+              // Update content type when content changes
+              _detectContentType();
             });
           },
           validator: (value) {
@@ -182,13 +269,44 @@ class _PostSchedulerDialogState extends State<PostSchedulerDialog> {
           );
         }
 
+        // Filter accounts based on selected platforms
+        List<SocialAccount> availableAccounts = provider.accounts;
+        if (_selectedPlatforms.isNotEmpty) {
+          availableAccounts = provider.accounts
+              .where((account) => _selectedPlatforms.contains(account.platform))
+              .toList();
+        }
+
+        if (availableAccounts.isEmpty) {
+          return const Text(
+            'No accounts available for selected platforms. Please select different platforms or connect relevant accounts.',
+            style: TextStyle(color: Colors.red),
+          );
+        }
+
+        // Find selected account by ID if exists
+        if (_isEditing && _selectedAccount != null && _selectedAccount!.id != null) {
+          final accountId = _selectedAccount!.id;
+          // Try to find the matching account in the provider's list
+          final matchingAccount = availableAccounts
+              .firstWhere((a) => a.id == accountId, orElse: () => _selectedAccount!);
+
+          // If found a different instance but same ID, use that one
+          if (matchingAccount != _selectedAccount && matchingAccount.id == accountId) {
+            _selectedAccount = matchingAccount;
+          }
+        } else if (_selectedPlatforms.isNotEmpty && availableAccounts.isNotEmpty) {
+          // Auto-select the first account for the first selected platform
+          _selectedAccount = availableAccounts.first;
+        }
+
         return DropdownButtonFormField<SocialAccount>(
           decoration: const InputDecoration(
             labelText: 'Account',
             border: OutlineInputBorder(),
           ),
           value: _selectedAccount,
-          items: provider.accounts.map((account) {
+          items: availableAccounts.map((account) {
             return DropdownMenuItem<SocialAccount>(
               value: account,
               child: Text('${account.platform} - ${account.username}'),
@@ -282,37 +400,32 @@ class _PostSchedulerDialogState extends State<PostSchedulerDialog> {
 
   void _schedulePost() async {
     if (_formKey.currentState!.validate()) {
-      // Add explicit null checks for both selectedContent and selectedAccount
-      if (_selectedContent == null) {
+      // Validate content selection
+      if (_selectedContent == null || _selectedContent!.id == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select content to schedule')),
+          const SnackBar(content: Text('Please select valid content to schedule')),
         );
         return;
       }
 
-      if (_selectedAccount == null) {
+      // Validate platform selection
+      if (_selectedPlatforms.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select an account')),
+          const SnackBar(content: Text('Please select at least one platform to post to')),
         );
         return;
       }
 
-      // Check for null IDs specifically
-      if (_selectedContent!.id == null) {
+      // Validate account selection
+      if (_selectedAccount == null || _selectedAccount!.id == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Selected content has no ID. Try saving it again.')),
-        );
-        return;
-      }
-
-      if (_selectedAccount!.id == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Selected account has no ID. Try connecting it again.')),
+          const SnackBar(content: Text('Please select a valid account')),
         );
         return;
       }
 
       final scheduleProvider = Provider.of<ScheduleProvider>(context, listen: false);
+      final accountProvider = Provider.of<AccountProvider>(context, listen: false);
 
       // Create DateTime from selected date and time
       final scheduledDateTime = DateTime(
@@ -333,6 +446,7 @@ class _PostSchedulerDialogState extends State<PostSchedulerDialog> {
 
       try {
         if (_isEditing && widget.scheduledPost != null) {
+          // For editing, update the single post with the selected account
           final updatedPost = ScheduledPost(
             id: widget.scheduledPost!.id,
             contentItemId: _selectedContent!.id!,
@@ -342,25 +456,47 @@ class _PostSchedulerDialogState extends State<PostSchedulerDialog> {
           );
 
           await scheduleProvider.updateScheduledPost(updatedPost);
-        } else {
-          await scheduleProvider.schedulePost(
-            contentItemId: _selectedContent!.id!,
-            socialAccountId: _selectedAccount!.id!,
-            scheduledTime: scheduledDateTime,
-          );
-        }
 
-        if (mounted && scheduleProvider.error == null) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                _isEditing
-                    ? 'Post schedule updated successfully'
-                    : 'Post scheduled successfully',
+          if (mounted && scheduleProvider.error == null) {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Post schedule updated successfully')),
+            );
+          }
+        } else {
+          // For new posts, create a post for each selected platform
+          int successCount = 0;
+
+          for (final platform in _selectedPlatforms) {
+            // Find an account for this platform
+            final accountsForPlatform = accountProvider.accounts
+                .where((a) => a.platform == platform)
+                .toList();
+
+            if (accountsForPlatform.isNotEmpty) {
+              // Use the first account for this platform
+              final account = accountsForPlatform.first;
+
+              await scheduleProvider.schedulePost(
+                contentItemId: _selectedContent!.id!,
+                socialAccountId: account.id!,
+                scheduledTime: scheduledDateTime,
+              );
+
+              successCount++;
+            }
+          }
+
+          if (mounted && scheduleProvider.error == null) {
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                    'Post scheduled to $successCount platform${successCount == 1 ? '' : 's'} successfully'
+                ),
               ),
-            ),
-          );
+            );
+          }
         }
       } catch (e) {
         // Show error message if scheduling fails

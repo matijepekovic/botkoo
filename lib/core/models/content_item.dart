@@ -44,4 +44,15 @@ class ContentItem {
       status: map['status'],
     );
   }
+
+  // Add these equality operators
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is ContentItem &&
+        other.id == id;
+  }
+
+  @override
+  int get hashCode => id?.hashCode ?? 0;
 }

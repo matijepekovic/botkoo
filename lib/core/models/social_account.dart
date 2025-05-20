@@ -42,4 +42,34 @@ class SocialAccount {
       isActive: map['isActive'] == 1,
     );
   }
+
+  // Add copyWith method for easy object updates
+  SocialAccount copyWith({
+    int? id,
+    String? platform,
+    String? username,
+    String? token,
+    String? refreshToken,
+    DateTime? tokenExpiry,
+    bool? isActive,
+  }) {
+    return SocialAccount(
+      id: id ?? this.id,
+      platform: platform ?? this.platform,
+      username: username ?? this.username,
+      token: token ?? this.token,
+      refreshToken: refreshToken ?? this.refreshToken,
+      tokenExpiry: tokenExpiry ?? this.tokenExpiry,
+      isActive: isActive ?? this.isActive,
+    );
+  }
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    return other is SocialAccount &&
+        other.id == id;
+  }
+
+  @override
+  int get hashCode => id?.hashCode ?? 0;
 }

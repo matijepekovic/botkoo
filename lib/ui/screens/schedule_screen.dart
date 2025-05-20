@@ -41,9 +41,19 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
   @override
   void dispose() {
-    // Remove the listener when the widget is disposed
-    final scheduleProvider = Provider.of<ScheduleProvider>(context, listen: false);
-    scheduleProvider.removeListener(_scheduleProviderListener);
+    // Store provider locally before calling super.dispose()
+    ScheduleProvider? scheduleProvider;
+    try {
+      scheduleProvider = Provider.of<ScheduleProvider>(context, listen: false);
+    } catch (e) {
+      // Provider might already be unavailable, that's okay
+    }
+
+    // Only remove listener if we successfully got the provider
+    if (scheduleProvider != null) {
+      scheduleProvider.removeListener(_scheduleProviderListener);
+    }
+
     super.dispose();
   }
 
@@ -262,6 +272,25 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
+                    // Status indicator - wrapped in Flexible to prevent overflow
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(post.status).withAlpha(51), // 0.2 opacity = ~51 alpha
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          post.status.toUpperCase(),
+                          style: TextStyle(
+                            color: _getStatusColor(post.status),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     PopupMenuButton<String>(
                       onSelected: (value) {
                         switch (value) {
@@ -306,6 +335,44 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 16),
+
+                // Display failure reason if post failed
+                if (post.status == 'failed' && post.failureReason != null)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.withAlpha(26), // 0.1 opacity = ~26 alpha
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: Colors.red, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Error: ${post.failureReason}',
+                            style: const TextStyle(color: Colors.red, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Add Publish Now button for pending or failed posts
+                if (post.status != 'published')
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: OutlinedButton.icon(
+                      onPressed: scheduleProvider.isLoading
+                          ? null
+                          : () => _publishNow(post.id!),
+                      icon: const Icon(Icons.send),
+                      label: const Text('Publish Now'),
+                    ),
+                  ),
+
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -346,6 +413,69 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     );
   }
 
+  // Get color based on post status
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'pending':
+        return Colors.orange;
+      case 'published':
+        return Colors.green;
+      case 'failed':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  // Method to publish a post immediately
+  Future<void> _publishNow(int postId) async {
+    final provider = Provider.of<ScheduleProvider>(context, listen: false);
+
+    // Show loading dialog
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Dialog(
+          child: Padding(
+            padding: EdgeInsets.all(20.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 20),
+                Text('Publishing post...'),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    // Try to publish
+    final success = await provider.publishNow(postId);
+
+    // Close loading dialog
+    if (mounted) Navigator.of(context).pop();
+
+    // Show result
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? 'Post published successfully!'
+                : 'Failed to publish post. Check details and try again.',
+          ),
+          backgroundColor: success ? Colors.green : Colors.red,
+        ),
+      );
+    }
+
+    // Update posts list
+    _updatePostsForSelectedDay();
+  }
+
   Widget _buildScheduleButton() {
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -365,7 +495,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   void _showScheduleDialog() {
     showDialog(
       context: context,
-      builder: (context) => const PostSchedulerDialog(),
+      builder: (context) => PostSchedulerDialog(
+        initialDate: _selectedDay, // Pass the selected day
+      ),
     ).then((_) {
       // Update posts after the dialog is closed
       _updatePostsForSelectedDay();
