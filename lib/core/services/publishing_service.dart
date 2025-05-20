@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:botko/core/models/scheduled_post.dart';
 import 'package:botko/core/models/content_item.dart';
 import 'package:botko/core/models/social_account.dart';
+import 'package:botko/core/models/content_type.dart'; // Added missing import
 import 'package:botko/data/local/database_helper.dart';
 import 'package:flutter/foundation.dart'; // For debugPrint
 
@@ -81,8 +82,8 @@ class PublishingService {
     }
   }
 
-  // Publish a single post
-  Future<void> _publishPost(ScheduledPost post) async {
+  // Enhanced publish a single post - merged/replaced duplicate method
+  Future<bool> _publishPost(ScheduledPost post) async {
     try {
       // Get the content and account for this post
       final contentItem = await _getContentItem(post.contentItemId);
@@ -90,22 +91,46 @@ class PublishingService {
 
       if (contentItem == null || account == null) {
         await _markPostAsFailed(post.id!, 'Content or account not found');
-        return;
+        return false;
       }
 
-      // Simulate API call to publish the post
-      final success = await _simulatePublishToSocialMedia(
-        account: account,
-        content: contentItem,
-      );
+      // Check platform compatibility if content type is available
+      if (contentItem.contentType != null &&
+          !contentItem.contentType.isCompatibleWith(account.platform)) {
+        await _markPostAsFailed(
+            post.id!,
+            'Content type ${contentItem.contentType.displayName} is not compatible with ${account.platform}'
+        );
+        return false;
+      }
+
+      // Publish based on content type and platform
+      bool success;
+
+      if (contentItem.contentType != null) {
+        // Use content type-specific publishing if available
+        success = await _publishByContentType(
+          account: account,
+          content: contentItem,
+        );
+      } else {
+        // Fall back to generic publishing for legacy content
+        success = await _simulatePublishToSocialMedia(
+          account: account,
+          content: contentItem,
+        );
+      }
 
       if (success) {
         await _markPostAsPublished(post.id!);
+        return true;
       } else {
         await _markPostAsFailed(post.id!, 'Failed to publish to social media');
+        return false;
       }
     } catch (e) {
       await _markPostAsFailed(post.id!, e.toString());
+      return false;
     }
   }
 
@@ -194,19 +219,7 @@ class PublishingService {
     if (results.isEmpty) return false;
 
     final post = ScheduledPost.fromMap(results.first);
-    await _publishPost(post);
-
-    // Check if publishing succeeded
-    final updatedResults = await db.query(
-      'scheduled_posts',
-      where: 'id = ?',
-      whereArgs: [scheduledPostId],
-    );
-
-    if (updatedResults.isEmpty) return false;
-    final updatedPost = ScheduledPost.fromMap(updatedResults.first);
-
-    return updatedPost.status == 'published';
+    return await _publishPost(post);
   }
 
   // Status check method
@@ -214,5 +227,75 @@ class PublishingService {
     debugPrint("Publishing service status:");
     debugPrint("- Is running: $_isRunning");
     debugPrint("- Timer active: ${_publishingTimer?.isActive ?? false}");
+  }
+
+  // Content type-specific publishing methods
+  Future<bool> _publishByContentType({
+    required SocialAccount account,
+    required ContentItem content,
+  }) async {
+    // Simulate network delay
+    await Future.delayed(const Duration(seconds: 2));
+
+    switch (content.contentType) {
+      case ContentType.textOnly:
+        return _publishTextOnlyPost(account, content);
+      case ContentType.textWithImage:
+      case ContentType.image:
+        return _publishImagePost(account, content);
+      case ContentType.carousel:
+        return _publishCarouselPost(account, content);
+      case ContentType.story:
+        return _publishStory(account, content);
+      case ContentType.reel:
+        return _publishReel(account, content);
+      case ContentType.shortVideo:
+        return _publishShortVideo(account, content);
+      case ContentType.longVideo:
+        return _publishLongVideo(account, content);
+      default:
+        return _publishStandardPost(account, content);
+    }
+  }
+
+  // Method implementations for different content types
+  Future<bool> _publishTextOnlyPost(SocialAccount account, ContentItem content) async {
+    debugPrint('Publishing text-only post to ${account.platform}');
+    return _simulatePublishToSocialMedia(account: account, content: content);
+  }
+
+  Future<bool> _publishImagePost(SocialAccount account, ContentItem content) async {
+    debugPrint('Publishing image post to ${account.platform}');
+    return _simulatePublishToSocialMedia(account: account, content: content);
+  }
+
+  Future<bool> _publishCarouselPost(SocialAccount account, ContentItem content) async {
+    debugPrint('Publishing carousel post to ${account.platform}');
+    return _simulatePublishToSocialMedia(account: account, content: content);
+  }
+
+  Future<bool> _publishStory(SocialAccount account, ContentItem content) async {
+    debugPrint('Publishing story to ${account.platform}');
+    return _simulatePublishToSocialMedia(account: account, content: content);
+  }
+
+  Future<bool> _publishReel(SocialAccount account, ContentItem content) async {
+    debugPrint('Publishing reel to ${account.platform}');
+    return _simulatePublishToSocialMedia(account: account, content: content);
+  }
+
+  Future<bool> _publishShortVideo(SocialAccount account, ContentItem content) async {
+    debugPrint('Publishing short video to ${account.platform}');
+    return _simulatePublishToSocialMedia(account: account, content: content);
+  }
+
+  Future<bool> _publishLongVideo(SocialAccount account, ContentItem content) async {
+    debugPrint('Publishing long video to ${account.platform}');
+    return _simulatePublishToSocialMedia(account: account, content: content);
+  }
+
+  Future<bool> _publishStandardPost(SocialAccount account, ContentItem content) async {
+    debugPrint('Publishing standard post to ${account.platform}');
+    return _simulatePublishToSocialMedia(account: account, content: content);
   }
 }

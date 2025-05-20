@@ -1,6 +1,8 @@
-// Update ContentProvider to handle platform metadata
+// lib/core/providers/content_provider.dart
 import 'package:flutter/material.dart';
 import 'package:botko/core/models/content_item.dart';
+import 'package:botko/core/models/content_type.dart';
+import 'package:botko/core/models/content_metadata.dart';
 import 'package:botko/data/local/content_repository.dart';
 
 class ContentProvider extends ChangeNotifier {
@@ -29,12 +31,14 @@ class ContentProvider extends ChangeNotifier {
     }
   }
 
-  // Create a new content item with platform metadata
+  // Create a new content item with various options
   Future<void> createContent(
       String title,
       String content,
       List<String> mediaUrls,
-      [Map<String, dynamic>? platformMetadata]
+      {ContentType? contentType,
+        ContentMetadata? metadata,
+        Map<String, dynamic>? platformMetadata}
       ) async {
     _setLoading(true);
     _clearError();
@@ -46,19 +50,13 @@ class ContentProvider extends ChangeNotifier {
         mediaUrls: mediaUrls,
         createdAt: DateTime.now(),
         status: 'draft',
+        contentType: contentType ?? ContentType.textOnly,
+        metadata: metadata ?? ContentMetadata(),
         platformMetadata: platformMetadata,
       );
 
       final id = await _repository.createContent(item);
-      final createdItem = ContentItem(
-        id: id,
-        title: item.title,
-        content: item.content,
-        mediaUrls: item.mediaUrls,
-        createdAt: item.createdAt,
-        status: item.status,
-        platformMetadata: item.platformMetadata,
-      );
+      final createdItem = item.copyWith(id: id);
 
       _contentItems.add(createdItem);
       notifyListeners();
@@ -75,15 +73,8 @@ class ContentProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      final updatedItem = ContentItem(
-        id: item.id,
-        title: item.title,
-        content: item.content,
-        mediaUrls: item.mediaUrls,
-        createdAt: item.createdAt,
+      final updatedItem = item.copyWith(
         updatedAt: DateTime.now(),
-        status: item.status,
-        platformMetadata: item.platformMetadata,
       );
 
       await _repository.updateContent(updatedItem);
@@ -109,15 +100,9 @@ class ContentProvider extends ChangeNotifier {
       final index = _contentItems.indexWhere((item) => item.id == id);
       if (index != -1) {
         final item = _contentItems[index];
-        final updatedItem = ContentItem(
-          id: item.id,
-          title: item.title,
-          content: item.content,
-          mediaUrls: item.mediaUrls,
-          createdAt: item.createdAt,
+        final updatedItem = item.copyWith(
           updatedAt: DateTime.now(),
           status: status,
-          platformMetadata: item.platformMetadata,
         );
 
         await _repository.updateContent(updatedItem);
@@ -145,6 +130,11 @@ class ContentProvider extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  // Get content by type
+  List<ContentItem> getContentByType(ContentType type) {
+    return _contentItems.where((item) => item.contentType == type).toList();
   }
 
   // Helper methods

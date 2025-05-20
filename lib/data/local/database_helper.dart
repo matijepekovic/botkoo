@@ -2,6 +2,8 @@
 import 'package:path/path.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show Platform;
+import 'dart:convert'; // Added for jsonEncode
+import 'package:botko/core/utils/logger.dart'; // Added for Logger
 // Import only the sqflite_common_ffi package since it provides all needed elements
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -35,7 +37,7 @@ class DatabaseHelper {
     String path = join(await getDatabasesPath(), 'botko.db');
     return await openDatabase(
       path,
-      version: 2, // Increment version for migration
+      version: 3, // Incremented version for new migration
       onCreate: _createTables,
       onUpgrade: _onUpgrade,
     );
@@ -66,7 +68,9 @@ class DatabaseHelper {
         createdAt TEXT NOT NULL,
         updatedAt TEXT,
         status TEXT NOT NULL,
-        platformMetadata TEXT
+        platformMetadata TEXT,
+        contentType TEXT,
+        metadata TEXT
       )
     ''');
 
@@ -88,54 +92,77 @@ class DatabaseHelper {
 
   // Handle database upgrades
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 2) {
-      // Previous migration steps
-      await db.execute('ALTER TABLE social_accounts ADD COLUMN platformSpecificData TEXT');
-      await db.execute('ALTER TABLE content_items ADD COLUMN platformMetadata TEXT');
-      await db.execute('ALTER TABLE scheduled_posts ADD COLUMN platformSpecificParams TEXT');
-    }
-
+    // Adding contentType and metadata columns for version 3
     if (oldVersion < 3) {
-      // Add new columns for the enhanced content type system
-      await db.execute('ALTER TABLE content_items ADD COLUMN contentType TEXT');
-      await db.execute('ALTER TABLE content_items ADD COLUMN metadata TEXT');
+      try {
+        // Check if columns exist before adding them
+        final List<Map<String, dynamic>> columns = await db.rawQuery('PRAGMA table_info(content_items)');
+        final columnNames = columns.map((col) => col['name'] as String).toList();
 
-      // Update existing records to have a default content type based on media
-      final List<Map<String, dynamic>> existingContent = await db.query('content_items');
-      for (final item in existingContent) {
-        final contentId = item['id'];
-        final mediaUrls = item['mediaUrls'] as String? ?? '';
-        final content = item['content'] as String? ?? '';
-
-        // Determine content type
-        String contentType;
-        if (mediaUrls.isEmpty) {
-          contentType = 'ContentType.textOnly';
-        } else if (mediaUrls.contains('.mp4') || mediaUrls.contains('.mov')) {
-          contentType = 'ContentType.shortVideo';
-        } else if (mediaUrls.contains('.jpg') || mediaUrls.contains('.png')) {
-          contentType = content.isEmpty ? 'ContentType.image' : 'ContentType.textWithImage';
-        } else {
-          contentType = 'ContentType.textOnly';
+        // Add contentType column if it doesn't exist
+        if (!columnNames.contains('contentType')) {
+          await db.execute('ALTER TABLE content_items ADD COLUMN contentType TEXT');
         }
 
-        // Create default metadata
-        final Map<String, dynamic> metadata = {
-          'visibility': 'ContentVisibility.public',
-        };
+        // Add metadata column if it doesn't exist
+        if (!columnNames.contains('metadata')) {
+          await db.execute('ALTER TABLE content_items ADD COLUMN metadata TEXT');
+        }
 
-        // Update the record
-        await db.update(
-          'content_items',
-          {
-            'contentType': contentType,
-            'metadata': jsonEncode(metadata),
-          },
-          where: 'id = ?',
-          whereArgs: [contentId],
-        );
+        // Update existing records
+        final List<Map<String, dynamic>> existingContent = await db.query('content_items');
+        for (final item in existingContent) {
+          final mediaUrls = item['mediaUrls'] as String? ?? '';
+          final content = item['content'] as String? ?? '';
+
+          // Determine content type
+          String contentType = _determineContentType(mediaUrls, content);
+
+          // Create default metadata
+          final Map<String, dynamic> metadata = {
+            'visibility': 'ContentVisibility.public',
+            'hashtags': _extractHashtags(content),
+          };
+
+          // Update the record
+          await db.update(
+            'content_items',
+            {
+              'contentType': contentType,
+              'metadata': jsonEncode(metadata),
+            },
+            where: 'id = ?',
+            whereArgs: [item['id']],
+          );
+        }
+
+        Logger.i('DatabaseHelper', 'Successfully migrated content types for ${existingContent.length} items');
+      } catch (e) {
+        Logger.e('DatabaseHelper', 'Error during migration: $e');
       }
     }
+  }
+
+  // Helper method to determine content type
+  String _determineContentType(String mediaUrls, String content) {
+    if (mediaUrls.isEmpty) {
+      return 'ContentType.textOnly';
+    } else if (mediaUrls.contains('.mp4') || mediaUrls.contains('.mov')) {
+      return 'ContentType.shortVideo';  // Default to short video
+    } else if (mediaUrls.contains('.jpg') || mediaUrls.contains('.png')) {
+      return content.isEmpty ? 'ContentType.image' : 'ContentType.textWithImage';
+    } else {
+      return 'ContentType.textOnly';  // Default fallback
+    }
+  }
+
+  // Extract hashtags from content
+  List<String> _extractHashtags(String content) {
+    final RegExp hashtagRegex = RegExp(r'#\w+');
+    return hashtagRegex.allMatches(content)
+        .map((match) => match.group(0) ?? '')
+        .where((tag) => tag.isNotEmpty)
+        .toList();
   }
 
   // CRUD operations for Social Accounts

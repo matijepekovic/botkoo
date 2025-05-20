@@ -517,7 +517,7 @@ class _ContentEditorScreenState extends State<ContentEditorScreen> {
     });
   }
 
-  // Save content
+  // Inside ContentEditorScreen.dart, replace the _saveContent method with this:
   void _saveContent(BuildContext context) {
     if (_formKey.currentState!.validate()) {
       final provider = Provider.of<ContentProvider>(context, listen: false);
@@ -570,8 +570,8 @@ class _ContentEditorScreenState extends State<ContentEditorScreen> {
           _titleController.text,
           _contentController.text,
           _mediaUrls,
-          _contentType,
-          metadata,
+          contentType: _contentType,
+          metadata: metadata,
         );
 
         if (provider.error == null) {
@@ -583,7 +583,6 @@ class _ContentEditorScreenState extends State<ContentEditorScreen> {
       }
     }
   }
-
   // Update content status
   void _updateContentStatus(BuildContext context, String status) {
     if (widget.contentItem?.id != null) {
