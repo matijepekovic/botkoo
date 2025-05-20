@@ -1,7 +1,9 @@
+// lib/ui/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:botko/ui/screens/connect_account_screen.dart';
 import 'package:botko/ui/screens/content_library_screen.dart';
 import 'package:botko/ui/screens/schedule_screen.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,7 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ),
     const _PlaceholderScreen(
       title: 'Analytics',
-      icon: Icons.analytics,
+      icon: FontAwesomeIcons.chartLine,
       description: 'View insights and performance metrics',
     ),
   ];
@@ -71,28 +73,28 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             _buildDrawerItem(
-              icon: Icons.account_circle,
+              icon: const FaIcon(FontAwesomeIcons.userPlus),
               title: 'Connect Accounts',
               index: 0,
             ),
             _buildDrawerItem(
-              icon: Icons.library_books,
+              icon: const FaIcon(FontAwesomeIcons.folderOpen),
               title: 'Content Library',
               index: 1,
             ),
             _buildDrawerItem(
-              icon: Icons.calendar_today,
+              icon: const FaIcon(FontAwesomeIcons.calendarDays),
               title: 'Schedule Posts',
               index: 2,
             ),
             _buildDrawerItem(
-              icon: Icons.analytics,
+              icon: const FaIcon(FontAwesomeIcons.chartLine),
               title: 'Analytics',
               index: 3,
             ),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.settings),
+              leading: const FaIcon(FontAwesomeIcons.gear),
               title: const Text('Settings'),
               onTap: () {
                 // Navigate to settings
@@ -106,12 +108,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildDrawerItem({
-    required IconData icon,
+    required Widget icon,  // Changed from IconData to Widget
     required String title,
     required int index,
   }) {
     return ListTile(
-      leading: Icon(icon),
+      leading: icon,  // Now we can directly use the widget
       title: Text(title),
       selected: _selectedIndex == index,
       onTap: () {
@@ -126,7 +128,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
 class _PlaceholderScreen extends StatelessWidget {
   final String title;
-  final IconData icon;
+  final IconData icon;  // Keep as IconData for simplicity
   final String description;
 
   const _PlaceholderScreen({
@@ -141,7 +143,7 @@ class _PlaceholderScreen extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
+          FaIcon(  // Changed to FaIcon to use FontAwesome
             icon,
             size: 80,
             color: Theme.of(context).colorScheme.primary.withAlpha(128),

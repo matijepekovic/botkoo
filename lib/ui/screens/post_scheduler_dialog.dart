@@ -1,3 +1,4 @@
+// lib/ui/screens/post_scheduler_dialog.dart - Modified to remove account dropdown
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:botko/core/models/content_item.dart';
@@ -21,26 +22,35 @@ class PostSchedulerDialog extends StatefulWidget {
 class _PostSchedulerDialogState extends State<PostSchedulerDialog> {
   final _formKey = GlobalKey<FormState>();
   ContentItem? _selectedContent;
-  SocialAccount? _selectedAccount;
   late DateTime _selectedDate;
   late TimeOfDay _selectedTime;
   bool _isEditing = false;
 
-  // Add these fields for platform selection
+  // Platform selection fields
   List<String> _selectedPlatforms = [];
   String _contentType = 'text'; // Default to text
 
   // Content type detection based on content
   void _detectContentType() {
     if (_selectedContent != null) {
-      // For now, simple detection
       if (_selectedContent!.mediaUrls.isNotEmpty) {
-        // Check if media is video or image (you'll need to enhance this)
-        _contentType = 'image'; // or 'video' or 'reel'
+        // Check file extensions or content type if available
+        final String mediaUrl = _selectedContent!.mediaUrls.first;
+        if (mediaUrl.endsWith('.mp4') || mediaUrl.endsWith('.mov')) {
+          // Check video duration if possible
+          _contentType = _isShortVideo(mediaUrl) ? 'reel' : 'video';
+        } else if (mediaUrl.endsWith('.jpg') || mediaUrl.endsWith('.png') || mediaUrl.endsWith('.jpeg')) {
+          _contentType = 'image';
+        }
       } else {
         _contentType = 'text';
       }
     }
+  }
+  bool _isShortVideo(String url) {
+    // In a real implementation, you would check the video duration
+    // For now, we'll return a placeholder
+    return true; // Assume short video for TikTok and Reels
   }
 
   // Platform toggle handler
@@ -62,16 +72,16 @@ class _PostSchedulerDialogState extends State<PostSchedulerDialog> {
     if (_isEditing) {
       final scheduleProvider = Provider.of<ScheduleProvider>(context, listen: false);
       _selectedContent = scheduleProvider.getContentForPost(widget.scheduledPost!.contentItemId);
-      _selectedAccount = scheduleProvider.getAccountForPost(widget.scheduledPost!.socialAccountId);
+
+      // If editing, get the platform from the existing post
+      final account = scheduleProvider.getAccountForPost(widget.scheduledPost!.socialAccountId);
+      if (account != null) {
+        _selectedPlatforms = [account.platform];
+      }
 
       final scheduledTime = widget.scheduledPost!.scheduledTime;
       _selectedDate = DateTime(scheduledTime.year, scheduledTime.month, scheduledTime.day);
       _selectedTime = TimeOfDay(hour: scheduledTime.hour, minute: scheduledTime.minute);
-
-      // If editing, add the platform from existing post
-      if (_selectedAccount != null) {
-        _selectedPlatforms = [_selectedAccount!.platform];
-      }
     } else {
       // Use the initialDate if provided, otherwise use today's date
       _selectedDate = widget.initialDate ?? DateTime.now();
@@ -97,41 +107,40 @@ class _PostSchedulerDialogState extends State<PostSchedulerDialog> {
               _buildContentDropdown(),
               const SizedBox(height: 16),
 
-              // Platform Selector (new)
-            Consumer<AccountProvider>(
-              builder: (context, provider, _) {
-                if (provider.isLoading) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+              // Platform Selector (now the primary account selection method)
+              Consumer<AccountProvider>(
+                builder: (context, provider, _) {
+                  if (provider.isLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
 
-                // Check if user has accounts for each platform
-                final availablePlatforms = {
-                  'twitter': provider.accounts.any((a) => a.platform == 'twitter'),
-                  'facebook': provider.accounts.any((a) => a.platform == 'facebook'),
-                  'instagram': provider.accounts.any((a) => a.platform == 'instagram'),
-                  'linkedin': provider.accounts.any((a) => a.platform == 'linkedin'),
-                };
+                  // Check if user has accounts for each platform
+                  final availablePlatforms = {
+                    'twitter': provider.accounts.any((a) => a.platform == 'twitter'),
+                    'facebook': provider.accounts.any((a) => a.platform == 'facebook'),
+                    'instagram': provider.accounts.any((a) => a.platform == 'instagram'),
+                    'linkedin': provider.accounts.any((a) => a.platform == 'linkedin'),
+                    'tiktok': provider.accounts.any((a) => a.platform == 'tiktok'),
+                    'threads': provider.accounts.any((a) => a.platform == 'threads'),
+                    'youtube': provider.accounts.any((a) => a.platform == 'youtube'),
+                  };
 
-                // Only show platform selector if at least one platform has accounts
-                if (!availablePlatforms.values.any((has) => has)) {
-                  return const Text(
-                    'No accounts connected. Connect an account first.',
-                    style: TextStyle(color: Colors.red),
+                  // Only show platform selector if at least one platform has accounts
+                  if (!availablePlatforms.values.any((has) => has)) {
+                    return const Text(
+                      'No accounts connected. Connect an account first.',
+                      style: TextStyle(color: Colors.red),
+                    );
+                  }
+
+                  return PlatformSelector(
+                    selectedPlatforms: _selectedPlatforms,
+                    onToggle: _togglePlatform,
+                    contentType: _contentType,
+                    availablePlatforms: availablePlatforms,
                   );
-                }
-
-                return PlatformSelector(
-                  selectedPlatforms: _selectedPlatforms,
-                  onToggle: _togglePlatform,
-                  contentType: _contentType,
-                  availablePlatforms: availablePlatforms, // Pass the available platforms
-                );
-              },
-            ),
-              const SizedBox(height: 16),
-
-              // Account Dropdown
-              _buildAccountDropdown(),
+                },
+              ),
               const SizedBox(height: 16),
 
               // Date Picker
@@ -255,79 +264,6 @@ class _PostSchedulerDialogState extends State<PostSchedulerDialog> {
     );
   }
 
-  Widget _buildAccountDropdown() {
-    return Consumer<AccountProvider>(
-      builder: (context, provider, _) {
-        if (provider.isLoading) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (provider.accounts.isEmpty) {
-          return const Text(
-            'No accounts connected. Connect an account first.',
-            style: TextStyle(color: Colors.red),
-          );
-        }
-
-        // Filter accounts based on selected platforms
-        List<SocialAccount> availableAccounts = provider.accounts;
-        if (_selectedPlatforms.isNotEmpty) {
-          availableAccounts = provider.accounts
-              .where((account) => _selectedPlatforms.contains(account.platform))
-              .toList();
-        }
-
-        if (availableAccounts.isEmpty) {
-          return const Text(
-            'No accounts available for selected platforms. Please select different platforms or connect relevant accounts.',
-            style: TextStyle(color: Colors.red),
-          );
-        }
-
-        // Find selected account by ID if exists
-        if (_isEditing && _selectedAccount != null && _selectedAccount!.id != null) {
-          final accountId = _selectedAccount!.id;
-          // Try to find the matching account in the provider's list
-          final matchingAccount = availableAccounts
-              .firstWhere((a) => a.id == accountId, orElse: () => _selectedAccount!);
-
-          // If found a different instance but same ID, use that one
-          if (matchingAccount != _selectedAccount && matchingAccount.id == accountId) {
-            _selectedAccount = matchingAccount;
-          }
-        } else if (_selectedPlatforms.isNotEmpty && availableAccounts.isNotEmpty) {
-          // Auto-select the first account for the first selected platform
-          _selectedAccount = availableAccounts.first;
-        }
-
-        return DropdownButtonFormField<SocialAccount>(
-          decoration: const InputDecoration(
-            labelText: 'Account',
-            border: OutlineInputBorder(),
-          ),
-          value: _selectedAccount,
-          items: availableAccounts.map((account) {
-            return DropdownMenuItem<SocialAccount>(
-              value: account,
-              child: Text('${account.platform} - ${account.username}'),
-            );
-          }).toList(),
-          onChanged: (value) {
-            setState(() {
-              _selectedAccount = value;
-            });
-          },
-          validator: (value) {
-            if (value == null) {
-              return 'Please select an account';
-            }
-            return null;
-          },
-        );
-      },
-    );
-  }
-
   Widget _buildDatePicker() {
     return InkWell(
       onTap: _pickDate,
@@ -398,6 +334,8 @@ class _PostSchedulerDialogState extends State<PostSchedulerDialog> {
     }
   }
 
+  // Fix for unused import with explicit type declaration
+
   void _schedulePost() async {
     if (_formKey.currentState!.validate()) {
       // Validate content selection
@@ -412,14 +350,6 @@ class _PostSchedulerDialogState extends State<PostSchedulerDialog> {
       if (_selectedPlatforms.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please select at least one platform to post to')),
-        );
-        return;
-      }
-
-      // Validate account selection
-      if (_selectedAccount == null || _selectedAccount!.id == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a valid account')),
         );
         return;
       }
@@ -446,11 +376,26 @@ class _PostSchedulerDialogState extends State<PostSchedulerDialog> {
 
       try {
         if (_isEditing && widget.scheduledPost != null) {
-          // For editing, update the single post with the selected account
+          // For editing, get the account for the selected platform
+          final List<SocialAccount> accountsForPlatform = accountProvider.accounts
+              .where((a) => _selectedPlatforms.contains(a.platform))
+              .toList();
+
+          if (accountsForPlatform.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('No account available for selected platform')),
+            );
+            return;
+          }
+
+          // Use the first account for this platform
+          final SocialAccount account = accountsForPlatform.first;
+
+          // Update the post with the selected account
           final updatedPost = ScheduledPost(
             id: widget.scheduledPost!.id,
             contentItemId: _selectedContent!.id!,
-            socialAccountId: _selectedAccount!.id!,
+            socialAccountId: account.id!,
             scheduledTime: scheduledDateTime,
             status: widget.scheduledPost!.status,
           );
@@ -469,13 +414,13 @@ class _PostSchedulerDialogState extends State<PostSchedulerDialog> {
 
           for (final platform in _selectedPlatforms) {
             // Find an account for this platform
-            final accountsForPlatform = accountProvider.accounts
+            final List<SocialAccount> accountsForPlatform = accountProvider.accounts
                 .where((a) => a.platform == platform)
                 .toList();
 
             if (accountsForPlatform.isNotEmpty) {
               // Use the first account for this platform
-              final account = accountsForPlatform.first;
+              final SocialAccount account = accountsForPlatform.first;
 
               await scheduleProvider.schedulePost(
                 contentItemId: _selectedContent!.id!,

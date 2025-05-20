@@ -1,3 +1,4 @@
+// Update ContentProvider to handle platform metadata
 import 'package:flutter/material.dart';
 import 'package:botko/core/models/content_item.dart';
 import 'package:botko/data/local/content_repository.dart';
@@ -28,8 +29,13 @@ class ContentProvider extends ChangeNotifier {
     }
   }
 
-  // Create a new content item
-  Future<void> createContent(String title, String content, List<String> mediaUrls) async {
+  // Create a new content item with platform metadata
+  Future<void> createContent(
+      String title,
+      String content,
+      List<String> mediaUrls,
+      [Map<String, dynamic>? platformMetadata]
+      ) async {
     _setLoading(true);
     _clearError();
 
@@ -40,6 +46,7 @@ class ContentProvider extends ChangeNotifier {
         mediaUrls: mediaUrls,
         createdAt: DateTime.now(),
         status: 'draft',
+        platformMetadata: platformMetadata,
       );
 
       final id = await _repository.createContent(item);
@@ -50,6 +57,7 @@ class ContentProvider extends ChangeNotifier {
         mediaUrls: item.mediaUrls,
         createdAt: item.createdAt,
         status: item.status,
+        platformMetadata: item.platformMetadata,
       );
 
       _contentItems.add(createdItem);
@@ -75,6 +83,7 @@ class ContentProvider extends ChangeNotifier {
         createdAt: item.createdAt,
         updatedAt: DateTime.now(),
         status: item.status,
+        platformMetadata: item.platformMetadata,
       );
 
       await _repository.updateContent(updatedItem);
@@ -108,6 +117,7 @@ class ContentProvider extends ChangeNotifier {
           createdAt: item.createdAt,
           updatedAt: DateTime.now(),
           status: status,
+          platformMetadata: item.platformMetadata,
         );
 
         await _repository.updateContent(updatedItem);

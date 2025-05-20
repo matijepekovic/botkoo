@@ -1,3 +1,4 @@
+// lib/ui/widgets/platform_selector.dart - Updated with smaller, single-row icons
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
@@ -24,35 +25,62 @@ class PlatformSelector extends StatelessWidget {
           'Share to:',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildPlatformIcon(
-              platform: 'twitter',
-              isEnabled: contentType != 'reel' && availablePlatforms['twitter'] == true,
-              icon: const FaIcon(FontAwesomeIcons.xTwitter),
-              activeColor: const Color(0xFF000000), // X is typically black
-            ),
-            _buildPlatformIcon(
-              platform: 'facebook',
-              isEnabled: availablePlatforms['facebook'] == true,
-              icon: const FaIcon(FontAwesomeIcons.facebook),
-              activeColor: const Color(0xFF1877F2),
-            ),
-            _buildPlatformIcon(
-              platform: 'instagram',
-              isEnabled: contentType != 'text_only' && availablePlatforms['instagram'] == true,
-              icon: const FaIcon(FontAwesomeIcons.instagram),
-              activeColor: const Color(0xFFE1306C),
-            ),
-            _buildPlatformIcon(
-              platform: 'linkedin',
-              isEnabled: contentType != 'reel' && availablePlatforms['linkedin'] == true,
-              icon: const FaIcon(FontAwesomeIcons.linkedin),
-              activeColor: const Color(0xFF0077B5),
-            ),
-          ],
+        const SizedBox(height: 8),
+        // Use Row instead of Wrap to ensure single line
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _buildPlatformIcon(
+                platform: 'twitter',
+                isEnabled: contentType != 'reel' && availablePlatforms['twitter'] == true,
+                icon: const FaIcon(FontAwesomeIcons.xTwitter),
+                activeColor: const Color(0xFF000000), // X is typically black
+              ),
+              const SizedBox(width: 8),
+              _buildPlatformIcon(
+                platform: 'facebook',
+                isEnabled: availablePlatforms['facebook'] == true,
+                icon: const FaIcon(FontAwesomeIcons.facebook),
+                activeColor: const Color(0xFF1877F2),
+              ),
+              const SizedBox(width: 8),
+              _buildPlatformIcon(
+                platform: 'instagram',
+                isEnabled: contentType != 'text_only' && availablePlatforms['instagram'] == true,
+                icon: const FaIcon(FontAwesomeIcons.instagram),
+                activeColor: const Color(0xFFE1306C),
+              ),
+              const SizedBox(width: 8),
+              _buildPlatformIcon(
+                platform: 'linkedin',
+                isEnabled: contentType != 'reel' && availablePlatforms['linkedin'] == true,
+                icon: const FaIcon(FontAwesomeIcons.linkedin),
+                activeColor: const Color(0xFF0077B5),
+              ),
+              const SizedBox(width: 8),
+              _buildPlatformIcon(
+                platform: 'tiktok',
+                isEnabled: (contentType == 'video' || contentType == 'reel') && availablePlatforms['tiktok'] == true,
+                icon: const FaIcon(FontAwesomeIcons.tiktok),
+                activeColor: const Color(0xFF000000),
+              ),
+              const SizedBox(width: 8),
+              _buildPlatformIcon(
+                platform: 'threads',
+                isEnabled: availablePlatforms['threads'] == true,
+                icon: const FaIcon(FontAwesomeIcons.at), // Threads doesn't have a specific icon yet
+                activeColor: const Color(0xFF000000),
+              ),
+              const SizedBox(width: 8),
+              _buildPlatformIcon(
+                platform: 'youtube',
+                isEnabled: (contentType == 'video' || contentType == 'long_video') && availablePlatforms['youtube'] == true,
+                icon: const FaIcon(FontAwesomeIcons.youtube),
+                activeColor: const Color(0xFFFF0000),
+              ),
+            ],
+          ),
         ),
         // Add an explanation when platforms are disabled
         if (availablePlatforms.values.any((hasAccount) => !hasAccount))
@@ -80,20 +108,27 @@ class PlatformSelector extends StatelessWidget {
     final bool isSelected = selectedPlatforms.contains(platform);
     final bool isActive = isEnabled && isSelected;
 
+    // Make the icons darker when enabled, for better visibility
+    final Color iconColor = isActive
+        ? activeColor
+        : isEnabled
+        ? Colors.grey.shade600  // Darker gray for enabled but not selected
+        : Colors.grey.shade300;  // Light gray for disabled
+
     return Opacity(
-      opacity: isEnabled ? 1.0 : 0.4,
+      opacity: isEnabled ? 1.0 : 0.5,  // Less transparent when disabled
       child: InkWell(
         onTap: isEnabled
             ? () => onToggle(platform)
             : null,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(8),
         child: Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),  // Smaller padding
           decoration: BoxDecoration(
             color: isActive
                 ? activeColor.withAlpha(25)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: isActive ? activeColor : Colors.grey.shade300,
               width: 1,
@@ -101,8 +136,8 @@ class PlatformSelector extends StatelessWidget {
           ),
           child: IconTheme(
             data: IconThemeData(
-              size: 28,
-              color: isActive ? activeColor : Colors.grey,
+              size: 20,  // Smaller icon size
+              color: iconColor,
             ),
             child: icon,
           ),

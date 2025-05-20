@@ -1,9 +1,11 @@
+// lib/ui/screens/schedule_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:botko/core/models/scheduled_post.dart';
 import 'package:botko/core/providers/schedule_provider.dart';
 import 'package:botko/ui/screens/post_scheduler_dialog.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class ScheduleScreen extends StatefulWidget {
   const ScheduleScreen({super.key});
@@ -23,6 +25,37 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   // Pagination properties
   static const int _postsPerPage = 5;
   int _currentPage = 0;
+
+  // Helper methods for platform display
+  Widget _getPlatformIcon(String platform, {double size = 16, Color? color}) {
+    switch (platform.toLowerCase()) {
+      case 'twitter':
+        return FaIcon(FontAwesomeIcons.xTwitter, size: size, color: color ?? Colors.black);
+      case 'facebook':
+        return FaIcon(FontAwesomeIcons.facebook, size: size, color: color ?? const Color(0xFF1877F2));
+      case 'instagram':
+        return FaIcon(FontAwesomeIcons.instagram, size: size, color: color ?? const Color(0xFFE1306C));
+      case 'linkedin':
+        return FaIcon(FontAwesomeIcons.linkedin, size: size, color: color ?? const Color(0xFF0077B5));
+      case 'tiktok':
+        return FaIcon(FontAwesomeIcons.tiktok, size: size, color: color ?? Colors.black);
+      case 'threads':
+        return FaIcon(FontAwesomeIcons.at, size: size, color: color ?? Colors.black);
+      case 'youtube':
+        return FaIcon(FontAwesomeIcons.youtube, size: size, color: color ?? const Color(0xFFFF0000));
+      default:
+        return FaIcon(FontAwesomeIcons.globe, size: size, color: color ?? Colors.grey);
+    }
+  }
+
+  String _getPlatformDisplayName(String platform) {
+    switch (platform.toLowerCase()) {
+      case 'twitter':
+        return 'X';
+      default:
+        return platform.substring(0, 1).toUpperCase() + platform.substring(1);
+    }
+  }
 
   @override
   void initState() {
@@ -155,8 +188,8 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.calendar_today,
+                    FaIcon(
+                      FontAwesomeIcons.calendarDay,
                       size: 64,
                       color: Theme.of(context).colorScheme.primary.withAlpha(128),
                     ),
@@ -214,7 +247,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
               children: [
                 // Previous page button
                 IconButton(
-                  icon: const Icon(Icons.arrow_back),
+                  icon: const FaIcon(FontAwesomeIcons.angleLeft),
                   onPressed: _currentPage > 0
                       ? () {
                     setState(() {
@@ -229,7 +262,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
                 // Next page button
                 IconButton(
-                  icon: const Icon(Icons.arrow_forward),
+                  icon: const FaIcon(FontAwesomeIcons.angleRight),
                   onPressed: _currentPage < totalPages - 1
                       ? () {
                     setState(() {
@@ -307,7 +340,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                           value: 'edit',
                           child: Row(
                             children: [
-                              Icon(Icons.edit),
+                              FaIcon(FontAwesomeIcons.penToSquare, size: 16),
                               SizedBox(width: 8),
                               Text('Edit'),
                             ],
@@ -317,7 +350,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                           value: 'delete',
                           child: Row(
                             children: [
-                              Icon(Icons.delete),
+                              FaIcon(FontAwesomeIcons.trash, size: 16),
                               SizedBox(width: 8),
                               Text('Delete'),
                             ],
@@ -341,13 +374,13 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.red.withAlpha(26), // 0.1 opacity = ~26 alpha
-                        borderRadius: BorderRadius.circular(4),
-                      ),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withAlpha(26), // 0.1 opacity = ~26 alpha
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline, color: Colors.red, size: 16),
+                        const FaIcon(FontAwesomeIcons.circleExclamation, color: Colors.red, size: 16),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
@@ -368,7 +401,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                       onPressed: scheduleProvider.isLoading
                           ? null
                           : () => _publishNow(post.id!),
-                      icon: const Icon(Icons.send),
+                      icon: const FaIcon(FontAwesomeIcons.paperPlane, size: 16),
                       label: const Text('Publish Now'),
                     ),
                   ),
@@ -378,24 +411,24 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.account_circle, size: 16),
+                        const FaIcon(FontAwesomeIcons.user, size: 14),
                         const SizedBox(width: 4),
                         Text(
                           account.username,
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         const SizedBox(width: 8),
-                        const Icon(Icons.public, size: 16),
+                        _getPlatformIcon(account.platform, size: 14),
                         const SizedBox(width: 4),
                         Text(
-                          account.platform,
+                          _getPlatformDisplayName(account.platform),
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                       ],
                     ),
                     Row(
                       children: [
-                        const Icon(Icons.access_time, size: 16),
+                        const FaIcon(FontAwesomeIcons.clock, size: 14),
                         const SizedBox(width: 4),
                         Text(
                           _formatTime(post.scheduledTime),
@@ -485,7 +518,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           onPressed: () {
             _showScheduleDialog();
           },
-          icon: const Icon(Icons.add),
+          icon: const FaIcon(FontAwesomeIcons.plus),
           label: const Text('Schedule New Post'),
         ),
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:botko/core/providers/account_provider.dart';
 import 'package:botko/core/models/social_account.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class ConnectAccountScreen extends StatefulWidget {
   const ConnectAccountScreen({super.key});
@@ -17,11 +18,13 @@ class _ConnectAccountScreenState extends State<ConnectAccountScreen> {
   final _passwordController = TextEditingController();
 
   final List<Map<String, dynamic>> _platforms = [
-    {'value': 'twitter', 'label': 'Twitter', 'icon': Icons.message},
-    {'value': 'facebook', 'label': 'Facebook', 'icon': Icons.facebook},
-    {'value': 'instagram', 'label': 'Instagram', 'icon': Icons.camera_alt},
-    {'value': 'linkedin', 'label': 'LinkedIn', 'icon': Icons.work},
-    {'value': 'tiktok', 'label': 'TikTok', 'icon': Icons.music_note},
+    {'value': 'twitter', 'label': 'X', 'icon': FontAwesomeIcons.xTwitter},
+    {'value': 'facebook', 'label': 'Facebook', 'icon': FontAwesomeIcons.facebook},
+    {'value': 'instagram', 'label': 'Instagram', 'icon': FontAwesomeIcons.instagram},
+    {'value': 'linkedin', 'label': 'LinkedIn', 'icon': FontAwesomeIcons.linkedin},
+    {'value': 'tiktok', 'label': 'TikTok', 'icon': FontAwesomeIcons.tiktok},
+    {'value': 'threads', 'label': 'Threads', 'icon': FontAwesomeIcons.at}, // Threads doesn't have a specific icon yet
+    {'value': 'youtube', 'label': 'YouTube', 'icon': FontAwesomeIcons.youtube},
   ];
 
   @override
@@ -87,7 +90,7 @@ class _ConnectAccountScreenState extends State<ConnectAccountScreen> {
 
                 return Card(
                   child: ListTile(
-                    leading: Icon(platform['icon'] as IconData),
+                    leading: _getPlatformIcon(account.platform),
                     title: Text(account.username),
                     subtitle: Text('${platform['label']} - Connected'),
                     trailing: IconButton(
@@ -103,7 +106,26 @@ class _ConnectAccountScreenState extends State<ConnectAccountScreen> {
       },
     );
   }
-
+  Widget _getPlatformIcon(String platform) {
+    switch (platform) {
+      case 'twitter':
+        return const FaIcon(FontAwesomeIcons.xTwitter);
+      case 'facebook':
+        return const FaIcon(FontAwesomeIcons.facebook);
+      case 'instagram':
+        return const FaIcon(FontAwesomeIcons.instagram);
+      case 'linkedin':
+        return const FaIcon(FontAwesomeIcons.linkedin);
+      case 'tiktok':
+        return const FaIcon(FontAwesomeIcons.tiktok);
+      case 'threads':
+        return const FaIcon(FontAwesomeIcons.at); // Threads doesn't have a specific icon yet
+      case 'youtube':
+        return const FaIcon(FontAwesomeIcons.youtube);
+      default:
+        return const FaIcon(FontAwesomeIcons.globe);
+    }
+  }
   Widget _buildAddAccountSection() {
     return Consumer<AccountProvider>(
       builder: (context, provider, child) {
