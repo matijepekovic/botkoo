@@ -95,8 +95,7 @@ class PublishingService {
       }
 
       // Check platform compatibility if content type is available
-      if (contentItem.contentType != null &&
-          !contentItem.contentType.isCompatibleWith(account.platform)) {
+      if (!contentItem.contentType.isCompatibleWith(account.platform)) {
         await _markPostAsFailed(
             post.id!,
             'Content type ${contentItem.contentType.displayName} is not compatible with ${account.platform}'
@@ -104,22 +103,11 @@ class PublishingService {
         return false;
       }
 
-      // Publish based on content type and platform
-      bool success;
-
-      if (contentItem.contentType != null) {
-        // Use content type-specific publishing if available
-        success = await _publishByContentType(
-          account: account,
-          content: contentItem,
-        );
-      } else {
-        // Fall back to generic publishing for legacy content
-        success = await _simulatePublishToSocialMedia(
-          account: account,
-          content: contentItem,
-        );
-      }
+      // Publish based on content type
+      bool success = await _publishByContentType(
+        account: account,
+        content: contentItem,
+      );
 
       if (success) {
         await _markPostAsPublished(post.id!);
@@ -237,24 +225,28 @@ class PublishingService {
     // Simulate network delay
     await Future.delayed(const Duration(seconds: 2));
 
-    switch (content.contentType) {
-      case ContentType.textOnly:
-        return _publishTextOnlyPost(account, content);
-      case ContentType.textWithImage:
-      case ContentType.image:
-        return _publishImagePost(account, content);
-      case ContentType.carousel:
-        return _publishCarouselPost(account, content);
-      case ContentType.story:
-        return _publishStory(account, content);
-      case ContentType.reel:
-        return _publishReel(account, content);
-      case ContentType.shortVideo:
-        return _publishShortVideo(account, content);
-      case ContentType.longVideo:
-        return _publishLongVideo(account, content);
-      default:
-        return _publishStandardPost(account, content);
+    try {
+      switch (content.contentType) {
+        case ContentType.textOnly:
+          return _publishTextOnlyPost(account, content);
+        case ContentType.textWithImage:
+        case ContentType.image:
+          return _publishImagePost(account, content);
+        case ContentType.carousel:
+          return _publishCarouselPost(account, content);
+        case ContentType.story:
+          return _publishStory(account, content);
+        case ContentType.reel:
+          return _publishReel(account, content);
+        case ContentType.shortVideo:
+          return _publishShortVideo(account, content);
+        case ContentType.longVideo:
+          return _publishLongVideo(account, content);
+      }
+    } catch (e) {
+      // If any specific publishing method fails, use standard post as fallback
+      debugPrint('Error with specialized publishing: $e. Using standard publishing instead.');
+      return _publishStandardPost(account, content);
     }
   }
 
@@ -294,6 +286,7 @@ class PublishingService {
     return _simulatePublishToSocialMedia(account: account, content: content);
   }
 
+  // Standard post publishing as a fallback
   Future<bool> _publishStandardPost(SocialAccount account, ContentItem content) async {
     debugPrint('Publishing standard post to ${account.platform}');
     return _simulatePublishToSocialMedia(account: account, content: content);

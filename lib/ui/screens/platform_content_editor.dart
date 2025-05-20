@@ -404,7 +404,7 @@ class _PlatformContentEditorState extends State<PlatformContentEditor> {
           provider,
           _titleController.text,
           _contentController.text,
-          allPlatformMetadata,
+          platformMetadata: platformMetadata,
         );
       }
     }
@@ -422,9 +422,14 @@ class _PlatformContentEditorState extends State<PlatformContentEditor> {
       ContentProvider provider,
       String title,
       String content,
-      Map<String, dynamic> platformMetadata) async {
-    // Assuming we'll update the createContent method to accept platformMetadata
-    await provider.createContent(title, content, [], platformMetadata);
+      {Map<String, dynamic>? platformMetadata}) async {
+    // Make sure createContent method accepts platformMetadata as a named parameter
+    await provider.createContent(
+        title,
+        content,
+        [],
+        platformMetadata: platformMetadata
+    );
     if (!mounted) return;
     _handleSuccess(provider, context, 'Content created successfully');
   }
