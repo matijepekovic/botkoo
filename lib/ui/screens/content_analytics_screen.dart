@@ -62,7 +62,7 @@ class _ContentAnalyticsScreenState extends State<ContentAnalyticsScreen> {
                 for (var post in provider.scheduledPosts) {
                   if (post.status == _selectedMetric) {
                     final content = provider.getContentForPost(post.contentItemId);
-                    if (content != null && content.contentType != null) {
+                    if (content != null) {
                       final type = content.contentType;
                       typeDistribution[type] = (typeDistribution[type] ?? 0) + 1;
                     }

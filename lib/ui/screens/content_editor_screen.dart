@@ -556,45 +556,74 @@ class _ContentEditorScreenState extends State<ContentEditorScreen> {
           metadata: metadata,
         );
 
-        provider.updateContent(updatedItem);
-
-        if (provider.error == null) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Content updated successfully')),
-          );
-        }
+        _performUpdate(provider, updatedItem);
       } else {
         // Create new content
-        provider.createContent(
+        _performCreate(
+          provider,
           _titleController.text,
           _contentController.text,
           _mediaUrls,
-          contentType: _contentType,
-          metadata: metadata,
+          _contentType,
+          metadata,
         );
-
-        if (provider.error == null) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Content created successfully')),
-          );
-        }
       }
+    }
+  }
+
+// Add these helper methods to handle async operations safely
+  Future<void> _performUpdate(ContentProvider provider, ContentItem updatedItem) async {
+    await provider.updateContent(updatedItem);
+    if (!mounted) return; // Check if widget is still mounted
+
+    if (provider.error == null) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Content updated successfully')),
+      );
+    }
+  }
+
+  Future<void> _performCreate(
+      ContentProvider provider,
+      String title,
+      String content,
+      List<String> mediaUrls,
+      ContentType contentType,
+      ContentMetadata metadata) async {
+    await provider.createContent(
+      title,
+      content,
+      mediaUrls,
+      contentType: contentType,
+      metadata: metadata,
+    );
+    if (!mounted) return; // Check if widget is still mounted
+
+    if (provider.error == null) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Content created successfully')),
+      );
     }
   }
   // Update content status
   void _updateContentStatus(BuildContext context, String status) {
     if (widget.contentItem?.id != null) {
       final provider = Provider.of<ContentProvider>(context, listen: false);
-      provider.updateContentStatus(widget.contentItem!.id!, status).then((_) {
-        if (provider.error == null) {
-          Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Content ${status == 'published' ? 'published' : 'updated'} successfully')),
-          );
-        }
-      });
+      _performStatusUpdate(provider, widget.contentItem!.id!, status);
+    }
+  }
+
+  Future<void> _performStatusUpdate(ContentProvider provider, int itemId, String status) async {
+    await provider.updateContentStatus(itemId, status);
+    if (!mounted) return; // Check if widget is still mounted
+
+    if (provider.error == null) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Content ${status == 'published' ? 'published' : 'updated'} successfully')),
+      );
     }
   }
 }

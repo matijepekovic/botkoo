@@ -29,44 +29,6 @@ class _ContentLibraryScreenState extends State<ContentLibraryScreen> {
     ).toList();
   }
 
-  // Build content type filter chips
-  Widget _buildContentTypeFilters() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: FilterChip(
-              label: const Text('All Types'),
-              selected: _selectedContentTypeFilter == null,
-              onSelected: (selected) {
-                if (selected) {
-                  setState(() {
-                    _selectedContentTypeFilter = null;
-                  });
-                }
-              },
-            ),
-          ),
-          ...ContentType.values.map((type) {
-            return Padding(
-              padding: const EdgeInsets.only(right: 8.0),
-              child: FilterChip(
-                label: Text(type.displayName),
-                selected: _selectedContentTypeFilter == type,
-                onSelected: (selected) {
-                  setState(() {
-                    _selectedContentTypeFilter = selected ? type : null;
-                  });
-                },
-              ),
-            );
-          }).toList(),
-        ],
-      ),
-    );
-  }
 
   void _showContentTypeSelector() {
     showModalBottomSheet(
@@ -300,15 +262,14 @@ class _ContentCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  if (item.contentType != null)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: ContentTypeHelper.getIcon(
-                        item.contentType,
-                        size: 16,
-                        color: ContentTypeHelper.getColor(item.contentType),
-                      ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: ContentTypeHelper.getIcon(
+                      item.contentType,
+                      size: 16,
+                      color: ContentTypeHelper.getColor(item.contentType),
                     ),
+                  ),
                   Expanded(
                     child: Text(
                       item.title,

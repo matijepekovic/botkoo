@@ -93,7 +93,7 @@ extension ContentTypeExtension on ContentType {
       case ContentType.shortVideo:
         return FontAwesomeIcons.film;
       case ContentType.longVideo:
-        return FontAwesomeIcons.videoCamera;
+        return FontAwesomeIcons.video;
     }
   }
 }

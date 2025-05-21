@@ -395,9 +395,7 @@ class _PlatformContentEditorState extends State<PlatformContentEditor> {
         _performUpdate(provider, updatedItem);
       } else {
         // Create new content with platform-specific metadata
-        final Map<String, dynamic> allPlatformMetadata = {
-          widget.platform: platformMetadata,
-        };
+
 
         // Create new content
         _performCreate(
