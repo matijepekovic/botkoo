@@ -8,6 +8,7 @@ import 'package:botko/core/utils/logger.dart';
 import 'package:botko/core/utils/media_utils.dart';
 import 'package:path/path.dart' as path;
 
+
 class MediaService {
   static const String _tag = 'MediaService';
   static final MediaService _instance = MediaService._internal();
@@ -30,17 +31,17 @@ class MediaService {
       // Check if file exists
       if (!await originalFile.exists()) {
         Logger.e(_tag, 'File does not exist: $originalPath');
-        return originalPath; // Return original path, will be handled later
+        return ''; // ← FIXED: Return empty string when file doesn't exist
       }
 
       // If the path already points to our media directory, return it as is
       if (originalPath.startsWith(mediaDir.path)) {
-        // Verify the file still exists
+        // Verify the file still exists (double-check)
         if (await originalFile.exists()) {
           return originalPath;
         } else {
           Logger.e(_tag, 'File in media directory does not exist: $originalPath');
-          return ''; // Return empty string to indicate file is missing
+          return ''; // ← FIXED: Return empty string when file is missing
         }
       }
 
@@ -52,7 +53,7 @@ class MediaService {
       return newPath;
     } catch (e) {
       Logger.e(_tag, 'Error persisting path: $e');
-      return originalPath; // Return original path on error
+      return ''; // ← FIXED: Return empty string on error, not original path
     }
   }
   // Get the app's media directory

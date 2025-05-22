@@ -1,7 +1,7 @@
-// lib/ui/widgets/media_preview_widget.dart
+// lib/ui/widgets/media_preview_widget.dart - Windows Compatible Version
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:video_player/video_player.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:botko/core/services/media_service.dart';
 
 class MediaPreviewWidget extends StatefulWidget {
@@ -26,58 +26,6 @@ class _MediaPreviewWidgetState extends State<MediaPreviewWidget> {
   final MediaService _mediaService = MediaService();
   int _currentIndex = 0;
   final PageController _pageController = PageController();
-  final Map<String, VideoPlayerController> _videoControllers = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeVideoControllers();
-  }
-
-  @override
-  void didUpdateWidget(MediaPreviewWidget oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.mediaPaths != widget.mediaPaths) {
-      _disposeVideoControllers();
-      _initializeVideoControllers();
-    }
-  }
-
-  @override
-  void dispose() {
-    _disposeVideoControllers();
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  void _initializeVideoControllers() {
-    for (final path in widget.mediaPaths) {
-      if (_mediaService.isVideoFile(path)) {
-        try {
-          final file = File(path);
-          if (file.existsSync()) {
-            final controller = VideoPlayerController.file(file);
-            _videoControllers[path] = controller;
-            controller.initialize().then((_) {
-              // Ensure the controller is still needed when initialization completes
-              if (mounted && _videoControllers.containsKey(path)) {
-                setState(() {});
-              }
-            });
-          }
-        } catch (e) {
-          debugPrint('Error initializing video controller: $e');
-        }
-      }
-    }
-  }
-
-  void _disposeVideoControllers() {
-    for (final controller in _videoControllers.values) {
-      controller.dispose();
-    }
-    _videoControllers.clear();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -127,8 +75,8 @@ class _MediaPreviewWidgetState extends State<MediaPreviewWidget> {
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_ios_rounded,
+                        icon: const FaIcon(
+                          FontAwesomeIcons.angleLeft,
                           color: Colors.white,
                           size: 20,
                         ),
@@ -158,8 +106,8 @@ class _MediaPreviewWidgetState extends State<MediaPreviewWidget> {
                         shape: BoxShape.circle,
                       ),
                       child: IconButton(
-                        icon: const Icon(
-                          Icons.arrow_forward_ios_rounded,
+                        icon: const FaIcon(
+                          FontAwesomeIcons.angleRight,
                           color: Colors.white,
                           size: 20,
                         ),
@@ -229,7 +177,7 @@ class _MediaPreviewWidgetState extends State<MediaPreviewWidget> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: isVideo
-                  ? _buildVideoPreview(path)
+                  ? _buildVideoThumbnail(path)
                   : Image.file(
                 File(path),
                 fit: BoxFit.contain,
@@ -238,8 +186,8 @@ class _MediaPreviewWidgetState extends State<MediaPreviewWidget> {
                   return Container(
                     color: Colors.grey.shade200,
                     child: const Center(
-                      child: Icon(
-                        Icons.broken_image_outlined,
+                      child: FaIcon(
+                        FontAwesomeIcons.image,
                         size: 48,
                         color: Colors.grey,
                       ),
@@ -250,43 +198,18 @@ class _MediaPreviewWidgetState extends State<MediaPreviewWidget> {
             ),
           ),
 
-          // Overlay for video controls
-          if (isVideo && _videoControllers[path]?.value.isInitialized == true)
-            Positioned.fill(
-              child: Center(
-                child: IconButton(
-                  icon: Icon(
-                    _videoControllers[path]!.value.isPlaying
-                        ? Icons.pause_circle_outline
-                        : Icons.play_circle_outline,
-                    size: 48,
-                    color: Colors.white.withAlpha(204), // 0.8 opacity
-                  ),
-                  onPressed: () {
-                    setState(() {
-                      if (_videoControllers[path]!.value.isPlaying) {
-                        _videoControllers[path]!.pause();
-                      } else {
-                        _videoControllers[path]!.play();
-                      }
-                    });
-                  },
-                ),
-              ),
-            ),
-
           // Remove button
           Positioned(
             top: 8,
             right: 8,
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.black.withAlpha(128), // 0.5 opacity
+                color: Colors.black.withAlpha(128),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: IconButton(
-                icon: const Icon(
-                  Icons.close,
+                icon: const FaIcon(
+                  FontAwesomeIcons.xmark,
                   color: Colors.white,
                   size: 16,
                 ),
@@ -305,28 +228,47 @@ class _MediaPreviewWidgetState extends State<MediaPreviewWidget> {
     );
   }
 
-  Widget _buildVideoPreview(String path) {
-    final controller = _videoControllers[path];
-
-    if (controller?.value.isInitialized != true) {
-      return Container(
-        color: Colors.black,
-        child: const Center(
-          child: CircularProgressIndicator(),
+  // Video thumbnail without video player - Phase 1 compatible
+  Widget _buildVideoThumbnail(String path) {
+    return Container(
+      color: Colors.black,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withAlpha(51), // 0.2 opacity
+                shape: BoxShape.circle,
+              ),
+              child: const FaIcon(
+                FontAwesomeIcons.play,
+                color: Colors.white,
+                size: 32,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Video Preview',
+              style: TextStyle(
+                color: Colors.white.withAlpha(179), // 0.7 opacity
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              path.split('/').last,
+              style: TextStyle(
+                color: Colors.white.withAlpha(128), // 0.5 opacity
+                fontSize: 12,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+          ],
         ),
-      );
-    }
-
-    // Calculate a safe aspect ratio (default to 16:9 if extreme values)
-    double aspectRatio = controller!.value.aspectRatio;
-    if (aspectRatio <= 0.1 || aspectRatio >= 10.0) {
-      aspectRatio = 16/9;
-    }
-
-    return Center(
-      child: AspectRatio(
-        aspectRatio: aspectRatio,
-        child: VideoPlayer(controller),
       ),
     );
   }

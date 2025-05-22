@@ -36,17 +36,17 @@ class _ConnectAccountScreenState extends State<ConnectAccountScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Connected accounts section
-        _buildConnectedAccountsSection(),
-
-        const SizedBox(height: 24),
-
-        // Add new account section
-        _buildAddAccountSection(),
-      ],
+    return SingleChildScrollView(  // ← Add this wrapper
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Connected accounts section
+          _buildConnectedAccountsSection(),
+          const SizedBox(height: 24),
+          // Add new account section
+          _buildAddAccountSection(),
+        ],
+      ),
     );
   }
 
