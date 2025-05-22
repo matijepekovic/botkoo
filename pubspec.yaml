@@ -42,7 +42,13 @@ dependencies:
   # State management
   provider: ^6.1.2
 
-  # UI components
+  # Media handling dependencies
+  file_selector: ^1.0.0
+  image_picker: ^1.0.4
+  video_player: ^2.7.2
+  uuid: ^4.1.0
+
+  # Existing UI components...
   table_calendar: ^3.0.9
   fl_chart: ^0.66.1
 

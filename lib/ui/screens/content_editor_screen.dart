@@ -1,4 +1,4 @@
-// lib/ui/screens/content_editor_screen.dart (Updated)
+// lib/ui/screens/content_editor_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -6,6 +6,8 @@ import 'package:botko/core/models/content_item.dart';
 import 'package:botko/core/models/content_type.dart';
 import 'package:botko/core/models/content_metadata.dart';
 import 'package:botko/core/providers/content_provider.dart';
+import 'package:botko/core/services/media_service.dart';
+import 'package:botko/ui/widgets/media_preview_widget.dart';
 
 class ContentEditorScreen extends StatefulWidget {
   final ContentItem? contentItem;
@@ -32,6 +34,8 @@ class _ContentEditorScreenState extends State<ContentEditorScreen> {
   late ContentType _contentType;
   bool _isEditing = false;
   List<String> _mediaUrls = [];
+  bool _isUploadingMedia = false;
+  final MediaService _mediaService = MediaService();
 
   @override
   void initState() {
@@ -135,10 +139,10 @@ class _ContentEditorScreenState extends State<ContentEditorScreen> {
                       const SizedBox(width: 16),
                       Expanded(
                         child: FilledButton(
-                          onPressed: provider.isLoading
+                          onPressed: (provider.isLoading || _isUploadingMedia)
                               ? null
                               : () => _saveContent(context),
-                          child: provider.isLoading
+                          child: (provider.isLoading || _isUploadingMedia)
                               ? const SizedBox(
                             height: 20,
                             width: 20,
@@ -304,7 +308,12 @@ class _ContentEditorScreenState extends State<ContentEditorScreen> {
 
   // Media upload section
   Widget _buildMediaUploadSection() {
-    // Determine media label based on content type
+    // Skip for text-only content
+    if (_contentType == ContentType.textOnly) {
+      return const SizedBox.shrink();
+    }
+
+    // Determine media label and hint based on content type
     String mediaLabel;
     String mediaHint;
 
@@ -350,7 +359,27 @@ class _ContentEditorScreenState extends State<ContentEditorScreen> {
         // Media preview or upload area
         _mediaUrls.isEmpty
             ? _buildMediaUploadPlaceholder(mediaHint)
-            : _buildMediaPreview(),
+            : Column(
+          children: [
+            // Media Preview Widget
+            MediaPreviewWidget(
+              mediaPaths: _mediaUrls,
+              onRemove: _removeMedia,
+              isCarousel: _contentType == ContentType.carousel,
+            ),
+
+            // Add more media button for carousel
+            if (_contentType == ContentType.carousel)
+              Padding(
+                padding: const EdgeInsets.only(top: 12.0),
+                child: OutlinedButton.icon(
+                  onPressed: _isUploadingMedia ? null : _pickMedia,
+                  icon: const FaIcon(FontAwesomeIcons.plus, size: 16),
+                  label: const Text('Add More Images'),
+                ),
+              ),
+          ],
+        ),
       ],
     );
   }
@@ -364,7 +393,11 @@ class _ContentEditorScreenState extends State<ContentEditorScreen> {
         border: Border.all(color: Colors.grey.shade300),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Center(
+      child: _isUploadingMedia
+          ? const Center(
+        child: CircularProgressIndicator(),
+      )
+          : Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -410,53 +443,6 @@ class _ContentEditorScreenState extends State<ContentEditorScreen> {
     }
   }
 
-  // Media preview
-  Widget _buildMediaPreview() {
-    return Container(
-      width: double.infinity,
-      height: 200,
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Stack(
-        children: [
-          // Preview content
-          Center(
-            child: Text(
-              'Media Preview (${_mediaUrls.length} files)',
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-          ),
-
-          // Upload new / remove buttons
-          Positioned(
-            bottom: 8,
-            right: 8,
-            child: Row(
-              children: [
-                IconButton(
-                  icon: const FaIcon(FontAwesomeIcons.penToSquare, size: 16),
-                  onPressed: _pickMedia,
-                  tooltip: 'Replace media',
-                ),
-                IconButton(
-                  icon: const FaIcon(FontAwesomeIcons.trash, size: 16),
-                  onPressed: () {
-                    setState(() {
-                      _mediaUrls = [];
-                    });
-                  },
-                  tooltip: 'Remove all media',
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   // Visibility selector
   Widget _buildVisibilitySelector() {
     return Column(
@@ -491,33 +477,58 @@ class _ContentEditorScreenState extends State<ContentEditorScreen> {
     );
   }
 
-  // Media picker
-  void _pickMedia() {
-    // This would be implemented with file picker in a real app
-    // For now, simulate adding a media URL
+  // Media picker implementation using MediaService
+  Future<void> _pickMedia() async {
+    // Don't allow multiple picks in progress
+    if (_isUploadingMedia) return;
+
     setState(() {
-      if (_contentType == ContentType.carousel) {
-        // For carousel, allow multiple images
-        _mediaUrls = [
-          'image1.jpg',
-          'image2.jpg',
-          'image3.jpg',
-        ];
-      } else if (_contentType == ContentType.textWithImage ||
-          _contentType == ContentType.image) {
-        _mediaUrls = ['image.jpg'];
-      } else if (_contentType == ContentType.reel ||
-          _contentType == ContentType.shortVideo) {
-        _mediaUrls = ['video.mp4'];
-      } else if (_contentType == ContentType.longVideo) {
-        _mediaUrls = ['long_video.mp4'];
-      } else if (_contentType == ContentType.story) {
-        _mediaUrls = ['story.mp4'];
-      }
+      _isUploadingMedia = true;
     });
+
+    try {
+      final paths = await _mediaService.pickMediaForContentType(_contentType);
+
+      if (paths.isNotEmpty) {
+        setState(() {
+          if (_contentType == ContentType.carousel) {
+            // For carousel, add to existing media
+            _mediaUrls.addAll(paths);
+          } else {
+            // For other types, replace existing media
+            _mediaUrls = paths;
+          }
+        });
+      }
+    } catch (e) {
+      // Show error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error picking media: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isUploadingMedia = false;
+        });
+      }
+    }
   }
 
-  // Inside ContentEditorScreen.dart, replace the _saveContent method with this:
+  // Remove media
+  void _removeMedia(String path) {
+    setState(() {
+      _mediaUrls.remove(path);
+    });
+
+    // Optionally delete the file
+    _mediaService.deleteMediaFile(path);
+  }
+
   void _saveContent(BuildContext context) {
     if (_formKey.currentState!.validate()) {
       final provider = Provider.of<ContentProvider>(context, listen: false);
@@ -571,7 +582,7 @@ class _ContentEditorScreenState extends State<ContentEditorScreen> {
     }
   }
 
-// Add these helper methods to handle async operations safely
+  // Add these helper methods to handle async operations safely
   Future<void> _performUpdate(ContentProvider provider, ContentItem updatedItem) async {
     await provider.updateContent(updatedItem);
     if (!mounted) return; // Check if widget is still mounted
@@ -607,6 +618,7 @@ class _ContentEditorScreenState extends State<ContentEditorScreen> {
       );
     }
   }
+
   // Update content status
   void _updateContentStatus(BuildContext context, String status) {
     if (widget.contentItem?.id != null) {

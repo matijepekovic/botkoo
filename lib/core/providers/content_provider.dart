@@ -4,6 +4,9 @@ import 'package:botko/core/models/content_item.dart';
 import 'package:botko/core/models/content_type.dart';
 import 'package:botko/core/models/content_metadata.dart';
 import 'package:botko/data/local/content_repository.dart';
+import 'dart:io';
+import 'package:botko/core/services/media_service.dart';
+import 'package:botko/core/utils/logger.dart';
 
 class ContentProvider extends ChangeNotifier {
   final ContentRepository _repository = ContentRepository();
